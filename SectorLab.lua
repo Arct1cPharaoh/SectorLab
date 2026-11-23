@@ -4,9 +4,16 @@ local Timer = require('timer')
 
 local timer = Timer.new(500, 900)
 local prevM = nil
+local RUN_UP_METERES = 200
 
 local function fmt(t)
     return t and string.format('%.3f s', t) or '--'
+end
+
+local function teleportToSectionStart()
+    track.teleportCarTo(timer.startM - RUN_UP_METERES)
+    timer:reset()
+    prevM = nil
 end
 
 -- Runs every frame
@@ -41,4 +48,8 @@ function script.windowMain(dt)
 
     ui.text('Last: ' .. fmt(timer.last))
     ui.text('Best: ' .. fmt(timer.best))
+
+    if ui.button("Reset") then
+        teleportToSectionStart()
+    end
 end

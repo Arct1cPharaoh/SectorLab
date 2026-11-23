@@ -14,6 +14,11 @@ function Timer.new(startM, finishM)
     }, Timer)
 end
 
+function Timer:reset()
+    self.state = 'waiting'
+    self.runTime = 0
+end
+
 -- call every frame; returns the time when a run finishes
 function Timer:update(dt, prev, cur)
     if self.state == 'waiting' then
