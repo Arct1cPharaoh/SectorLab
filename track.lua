@@ -59,4 +59,13 @@ function M.gateEnds(distance)
     return center - sideways * halfWidth, center + sideways * halfWidth
 end
 
+-- How many wheels off track surface
+function M.wheelsOutside()
+    return car.wheelsOutside
+end
+
+function M.isColliding()
+    return car.collisionDepth > 0
+end
+
 return M

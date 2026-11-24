@@ -44,10 +44,14 @@ function script.update(dt)
     local cur = track.trackM()
 
     if prevM then
-        local t = timer:update(dt, prevM, cur)
+        local t, invalid = timer:update(dt, prevM, cur)
 
         if t then
-            ac.setSystemMessage('SectorLab', 'Section: ' .. fmt(t))
+            if invalid then
+                ac.setSystemMessage('SectorLab', 'Invalid run: ' .. fmt(t))
+            else
+                ac.setSystemMessage('SectorLab', 'Section: ' .. fmt(t))
+            end
         end
     end
 
@@ -67,6 +71,8 @@ function script.windowMain(dt)
 
     ui.text('Last: ' .. fmt(timer.last))
     ui.text('Best: ' .. fmt(timer.best))
+    ui.text('Running: ' .. fmt(timer.runTime) .. (timer.invalid and
+            '  (INVALID)' or ''))
 
     -- Reset Logic
     if ui.button("Reset") then
