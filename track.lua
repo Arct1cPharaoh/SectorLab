@@ -1,6 +1,7 @@
 local M = {}
 local sim = ac.getSim()
 local car = ac.getCar(0)
+local DOWN = vec3(0, -1, 0)
 
 -- metres from the start line
 function M.trackM()
@@ -42,6 +43,20 @@ function M.teleportCarTo(distance)
     local liftedPosition = position + vec3(0, 0.5, 0)
 
     physics.setCarPosition(0, liftedPosition, direction)
+end
+
+function M.gateEnds(distance)
+    local progress = (distance % sim.trackLengthM) / sim.trackLengthM
+    local center = M.worldPositionAt(distance)
+    local behind = M.worldPositionAt(distance - 1)
+    local sideways = (behind - center):cross(DOWN):normalize()
+
+    -- Distance from the racinging line to the edge of the track
+    local edges = ac.getTrackAISplineSides(progress)
+    center = center + sideways * ((edges.x - edges.y) / 2)
+    local halfWidth = (edges.x + edges.y) / 2 + 0.2
+
+    return center - sideways * halfWidth, center + sideways * halfWidth
 end
 
 return M
