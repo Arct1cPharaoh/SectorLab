@@ -1,0 +1,8 @@
+{
+  "name": "Test pack",
+  "track": "ks_red_bull_ring_layout_gp",
+  "sections": [
+    { "name": "First section", "start": 500, "finish": 900 },
+    { "name": "Second section", "start": 1200, "finish": 1600 }
+  ]
+}

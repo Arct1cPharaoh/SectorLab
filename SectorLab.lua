@@ -1,10 +1,17 @@
 local sim = ac.getSim()
 local track = require('track')
 local Timer = require('timer')
+local Packs = require('packs')
 
-local timer = Timer.new(500, 900)
+
+local packs = Packs.loadForTrack()
+local currentPack = packs[1]
+local selectedIndex = nil -- Which section is picked
+local timers = {} -- One timer per section
+local timer = nil -- Timer for the picked section
+
 local prevM = nil
-local RUN_UP_METERES = 200
+local RUN_UP_METRES = 200
 local Controls = require('controls')
 local GATE_HEIGHT = vec3(0, 2, 0)
 
@@ -13,9 +20,45 @@ local function fmt(t)
 end
 
 local function teleportToSectionStart()
-    track.teleportCarTo(timer.startM - RUN_UP_METERES)
+    if not timer then
+        return
+    end
+
+    track.teleportCarTo(timer.startM - RUN_UP_METRES)
     timer:reset()
     prevM = nil
+end
+
+local function selectSection(index)
+    local section = currentPack.sections[index]
+
+    if not timers[index] then
+        timers[index] = Timer.new(section.start, section.finish)
+    end
+
+    selectedIndex = index
+    timer = timers[index]
+    teleportToSectionStart()
+end
+
+-- Step through sections
+local function stepSection(direction)
+    if not currentPack then
+        return
+    end
+
+    local count = #currentPack.sections
+
+    if count == 0 then
+        return
+    end
+
+    if not selectedIndex then
+        selectSection(direction > 0 and 1 or count)
+        return
+    end
+
+    selectSection((selectedIndex - 1 + direction) % count + 1)
 end
 
 -- Two posts and a top bar across the track
@@ -27,6 +70,10 @@ local function drawGate(distance, color)
 end
 
 render.on('main.track.transparent', function()
+    if not timer then
+        return
+    end
+
     drawGate(timer.startM, rgbm.colors.lime) -- green start
     drawGate(timer.finishM, rgbm.colors.orange) -- orange finish
 end)
@@ -41,9 +88,17 @@ function script.update(dt)
         teleportToSectionStart()
     end
 
+    if Controls.nextSection:pressed() then
+        stepSection(1)
+    end
+
+    if Controls.previousSection:pressed() then
+        stepSection(-1)
+    end
+
     local cur = track.trackM()
 
-    if prevM then
+    if prevM and timer then
         local t, invalid = timer:update(dt, prevM, cur)
 
         if t then
@@ -60,23 +115,56 @@ end
 
 -- Draws the in game window
 function script.windowMain(dt)
+    if not currentPack then
+        ui.text('No packs for track: ' .. Packs.trackID)
+        if ui.button('Copy ID') then
+            ac.setClipboardText(Packs.trackID)
+            ac.setSystemMessage('SectorLab', 'Track ID copied!')
+        end
+        return
+    end
+
+    ui.text(currentPack.name)
+    for index, section in ipairs(currentPack.sections) do
+        if ui.selectable(section.name, index == selectedIndex) then
+            selectSection(index)
+        end
+    end
+
+    ui.separator()
+
+    if not timer then
+        ui.text('Pick a section')
+        return
+    end
+
     ui.text(string.format('Distance: %.0f m', track.trackM()))
-    ui.text(string.format('Section: %d m to %d m', timer.startM, timer.finishM))
+    ui.text(string.format('Section: %d m to %d m',
+        timer.startM, timer.finishM))
 
     if timer.state == 'running' then
-        ui.text('Running: ' .. fmt(timer.runTime))
+        local invalidTag = timer.invalid and '  (INVALID)' or ''
+        ui.text('Running: ' .. fmt(timer.runTime) .. invalidTag)
     else
         ui.text('Waiting for start gate')
     end
 
     ui.text('Last: ' .. fmt(timer.last))
     ui.text('Best: ' .. fmt(timer.best))
-    ui.text('Running: ' .. fmt(timer.runTime) .. (timer.invalid and
-            '  (INVALID)' or ''))
 
     -- Reset Logic
-    if ui.button("Reset") then
+    if ui.button('Previous') then
+        stepSection(-1)
+    end
+
+    ui.sameLine()
+    if ui.button('Reset') then
         teleportToSectionStart()
+    end
+
+    ui.sameLine()
+    if ui.button('Next') then
+        stepSection(1)
     end
 end
 

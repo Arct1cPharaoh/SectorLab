@@ -1,7 +1,21 @@
 local Controls = {}
 
 Controls.list = {
-    { name = 'reset', label = 'Reset to section start', button = ac.ControlButton('__APP_SECTORLAB_RESET') },
+    {
+        name = 'reset',
+        label = 'Reset to section start',
+        button = ac.ControlButton('__APP_SECTORLAB_RESET')
+    },
+    {
+        name = 'nextSection',
+        label = 'Next section',
+        button = ac.ControlButton('__APP_SECTORLAB_NEXT')
+    },
+    {
+        name = 'previousSection',
+        label = 'Previous section',
+        button = ac.ControlButton('__APP_SECTORLAB_PREVIOUS')
+    },
 }
 
 for _, control in ipairs(Controls.list) do
