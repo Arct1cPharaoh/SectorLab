@@ -55,7 +55,7 @@ end
 function Timer:update(dt, prev, cur)
     if self.state == 'waiting' then
         if track.crossed(prev, cur, self.startM) then
-            self:startRun()
+            self:startRun(cur)
         end
         return
     end

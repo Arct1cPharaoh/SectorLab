@@ -16,6 +16,16 @@ Controls.list = {
         label = 'Previous section',
         button = ac.ControlButton('__APP_SECTORLAB_PREVIOUS')
     },
+    {
+        name = 'setStart',
+        label = 'Creator: Set start here',
+        button = ac.ControlButton('__APP_SECTORLAB_SET_START')
+    },
+    {
+        name = 'setFinish',
+        label = 'Creator: Set finish here',
+        button = ac.ControlButton('__APP_SECTORLAB_SET_FINISH')
+    },
 }
 
 for _, control in ipairs(Controls.list) do

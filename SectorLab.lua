@@ -3,7 +3,6 @@ local track = require('track')
 local Timer = require('timer')
 local Packs = require('packs')
 
-
 local packs = Packs.loadForTrack()
 local currentPack = packs[1]
 local selectedIndex = nil -- Which section is picked
@@ -14,6 +13,10 @@ local prevM = nil
 local RUN_UP_METRES = 200
 local Controls = require('controls')
 local GATE_HEIGHT = vec3(0, 2, 0)
+
+local Creator = require('creator')
+local MIN_SECTION_METRES = 50
+local mode = 'play'
 
 local function fmt(t)
     return t and string.format('%.3f s', t) or '--'
@@ -61,6 +64,14 @@ local function stepSection(direction)
     selectSection((selectedIndex - 1 + direction) % count + 1)
 end
 
+-- Switch Play mode to a different oack
+local function usePack(pack)
+    currentPack = pack
+    timers = {}
+    timer = nil
+    selectedIndex = nil
+end
+
 -- Two posts and a top bar across the track
 local function drawGate(distance, color)
     local leftEnd, rightEnd = track.gateEnds(distance)
@@ -69,7 +80,27 @@ local function drawGate(distance, color)
     render.debugLine(leftEnd + GATE_HEIGHT, rightEnd + GATE_HEIGHT, color)
 end
 
+local function drawCreatorGates()
+    for _, section in ipairs(Creator.pack.sections) do
+        drawGate(section.start, rgbm.colors.gray)
+        drawGate(section.finish, rgbm.colors.gray)
+    end
+
+    if Creator.pendingStart then
+        drawGate(Creator.pendingStart, rgbm.colors.lime)
+    end
+
+    if Creator.pendingFinish then
+        drawGate(Creator.pendingFinish, rgbm.colors.orange)
+    end
+end
+
 render.on('main.track.transparent', function()
+    if mode == 'create' then
+        drawCreatorGates()
+        return
+    end
+
     if not timer then
         return
     end
@@ -96,6 +127,16 @@ function script.update(dt)
         stepSection(-1)
     end
 
+    if mode == 'create' then
+        if Controls.setStart:pressed() then
+            Creator.setStartHere()
+        end
+
+        if Controls.setFinish:pressed() then
+            Creator.setFinishHere()
+        end
+    end
+
     local cur = track.trackM()
 
     if prevM and timer then
@@ -113,8 +154,8 @@ function script.update(dt)
     prevM = cur
 end
 
--- Draws the in game window
-function script.windowMain(dt)
+-- Draws the in game window in play mode
+local function drawPlayWindow()
     if not currentPack then
         ui.text('No packs for track: ' .. Packs.trackID)
         if ui.button('Copy ID') then
@@ -124,13 +165,19 @@ function script.windowMain(dt)
         return
     end
 
-    ui.text(currentPack.name)
+    ui.text('Packs:')
+    for _, pack in ipairs(packs) do
+        if ui.selectable(pack.name, pack == currentPack) then
+            usePack(pack)
+        end
+    end
+    ui.separator()
+
     for index, section in ipairs(currentPack.sections) do
         if ui.selectable(section.name, index == selectedIndex) then
             selectSection(index)
         end
     end
-
     ui.separator()
 
     if not timer then
@@ -165,6 +212,87 @@ function script.windowMain(dt)
     ui.sameLine()
     if ui.button('Next') then
         stepSection(1)
+    end
+end
+
+local function gateText(distance)
+    return distance and string.format('%d m', distance) or 'not set'
+end
+
+local function drawCreateWindow()
+    Creator.pack.name = ui.inputText('Pack name', Creator.pack.name)
+    ui.text(string.format('Car at: %.0f m', track.trackM()))
+    ui.separator()
+
+    ui.text('Start: ' .. gateText(Creator.pendingStart))
+    ui.sameLine()
+
+    if ui.button('Set start here') then
+        Creator.setStartHere()
+    end
+
+    ui.text('Finish: ' .. gateText(Creator.pendingFinish))
+    ui.sameLine()
+
+    if ui.button('Set finish here') then
+        Creator.setFinishHere()
+    end
+
+    if Creator.canAddSection() then
+        if Creator.pendingLength() < MIN_SECTION_METRES then
+            ui.text('Warning: section is very short!')
+        end
+
+        if ui.button('Add section') then
+            Creator.addSection()
+        end
+    end
+
+    ui.separator()
+    for index, section in ipairs(Creator.pack.sections) do
+        ui.text(string.format('%d. %s (%d m to %d m)',
+            index, section.name, section.start, section.finish))
+    end
+
+    local hasSections = #Creator.pack.sections > 0
+    if hasSections and ui.button('Save pack') then
+        if Packs.save(Creator.pack) then
+            packs = Packs.loadForTrack()
+            ac.setSystemMessage('SectorLab', 'Saved ' .. Creator.pack.name)
+        else
+            ac.setSystemMessage('SectorLab', 'Could not save pack')
+        end
+    end
+
+    local hasSections = #Creator.pack.sections > 0
+    if hasSections and ui.button('Try pack in Play') then
+        usePack(Creator.pack)
+        mode = 'play'
+    end
+end
+
+-- renders window in game
+function script.windowMain(dt)
+    if ui.button('play') then
+        mode = 'Play'
+    end
+
+    ui.sameLine()
+
+    if ui.button('Create') then
+        mode = 'create'
+        
+        if not Creator.pack then
+            Creator.newPack()
+        end
+    end
+
+    ui.separator()
+
+    if mode == 'create' then
+        drawCreateWindow()
+    else
+        drawPlayWindow()
     end
 end
 
